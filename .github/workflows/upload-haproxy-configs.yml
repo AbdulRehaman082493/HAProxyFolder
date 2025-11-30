@@ -1,0 +1,85 @@
+name: Upload HAProxy Configs & Script (Versioned)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - stage
+          - prod
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'haproxy/**'
+
+jobs:
+  upload-haproxy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+
+      # 🔹 SAME storage account for all envs
+      STORAGE_ACCOUNT:       <yourSingleStorageAccount>
+
+      # 🔹 SAME container for all envs
+      CONTAINER_NAME:        haproxy
+
+      # if workflow_dispatch: use selected env; if push: default dev
+      ENV_NAME:              ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:     ${{ env.AZURE_CLIENT_ID }}
+          tenant-id:     ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Upload environment-specific haproxy config (versioned)
+        run: |
+          CONFIG_FILE="haproxy/haproxy.cfg.${ENV_NAME}"   # e.g. haproxy/haproxy.cfg.dev
+          BLOB_NAME="haproxy.cfg.${ENV_NAME}"             # e.g. haproxy.cfg.dev
+
+          echo "Uploading $CONFIG_FILE to container '${CONTAINER_NAME}' as blob '$BLOB_NAME'"
+
+          az storage blob upload \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --container-name ${{ env.CONTAINER_NAME }} \
+            --file "$CONFIG_FILE" \
+            --name "$BLOB_NAME" \
+            --overwrite true
+
+      - name: Upload base haproxy.cfg (versioned)
+        run: |
+          az storage blob upload \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --container-name ${{ env.CONTAINER_NAME }} \
+            --file haproxy/haproxy.cfg \
+            --name haproxy.cfg \
+            --overwrite true
+
+      - name: Upload deploy-haproxy.sh (versioned)
+        run: |
+          az storage blob upload \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --container-name ${{ env.CONTAINER_NAME }} \
+            --file haproxy/scripts/deploy-haproxy.sh \
+            --name deploy-haproxy.sh \
+            --overwrite true
