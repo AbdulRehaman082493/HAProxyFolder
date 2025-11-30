@@ -46,10 +46,6 @@ param owner string = 'haproxy'
 
 var nicName = '${vmName}-nic'
 
-//
-// ---------------------------
-// Network Interface
-// ---------------------------
 resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
   name: nicName
   location: location
@@ -73,14 +69,11 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
   }
 }
 
-//
-// ---------------------------
-// Virtual Machine
-// ---------------------------
 resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   name: vmName
   location: location
 
+  // 🔹 Enable system-assigned identity
   identity: {
     type: 'SystemAssigned'
   }
@@ -89,7 +82,6 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
     hardwareProfile: {
       vmSize: vmSize
     }
-
     osProfile: {
       computerName: vmName
       adminUsername: adminUsername
@@ -98,7 +90,6 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
         disablePasswordAuthentication: false
       }
     }
-
     storageProfile: {
       imageReference: {
         publisher: 'Canonical'
@@ -114,7 +105,6 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
         }
       }
     }
-
     networkProfile: {
       networkInterfaces: [
         {
@@ -123,7 +113,6 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
       ]
     }
   }
-
   tags: {
     environment: environment
     owner: owner
@@ -131,10 +120,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   }
 }
 
-//
-// ---------------------------
-// Cross-subscription Storage Role Assignment (Module)
-// ---------------------------
+// 🔹 Assign Storage Blob Data Contributor to VM's identity on sthaproxyshared (other subscription)
 module storageAccountRoleAssignment 'modules/storageAccountRoleAssignment.bicep' = {
   name: 'storageAccountRoleAssignment'
   scope: resourceGroup('06aa5329-5b5a-4789-bfe4-f8c2bfd81041', 'rg-haproxy')
@@ -143,10 +129,7 @@ module storageAccountRoleAssignment 'modules/storageAccountRoleAssignment.bicep'
   }
 }
 
-//
-// ---------------------------
-// Custom Script Extension
-// ---------------------------
+// 🔹 Custom Script Extension: downloads script + passes config URL as argument
 resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' = {
   name: 'haproxy-customscript'
   parent: vm
@@ -157,19 +140,14 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' =
     typeHandlerVersion: '2.1'
     autoUpgradeMinorVersion: true
 
-    // ✅ Public settings: only non-sensitive config
     settings: {
+      // Download deploy-haproxy.sh from private container
       fileUris: [
-        // blob URLs WITHOUT SAS, private container
-        'https://${storageAccountName}.blob.core.windows.net/${containerName}/${haproxyConfigBlob}'
-        'https://${storageAccountName}.blob.core.windows.net/${containerName}/${deployScriptBlob}'
+        'https://${storageAccountName}.blob.${environment().suffixes.storage}/${containerName}/${deployScriptBlob}'
       ]
-      commandToExecute: 'bash deploy-haproxy.sh'
-    }
 
-    // ✅ Protected settings: tell the extension to use the VM's system-assigned identity
-    protectedSettings: {
-      managedIdentity: {} // empty object = use parent VM system-assigned identity
+      // 🚀 Pass the config URL as argument to the script
+      commandToExecute: 'bash deploy-haproxy.sh "https://${storageAccountName}.blob.${environment().suffixes.storage}/${containerName}/${haproxyConfigBlob}"'
     }
   }
 }
