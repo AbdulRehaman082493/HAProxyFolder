@@ -75,7 +75,7 @@ jobs:
             --container-name "$CONTAINER_NAME" \
             --file haproxy/haproxy.cfg \
             --name haproxy.cfg \
-            --overwrite true \
+            --overwrite false \
             --auth-mode login
 
       - name: Upload deploy-haproxy.sh (versioned)
@@ -85,5 +85,5 @@ jobs:
             --container-name "$CONTAINER_NAME" \
             --file haproxy/scripts/deploy-haproxy.sh \
             --name deploy-haproxy.sh \
-            --overwrite true \
+            --overwrite false \
             --auth-mode login
