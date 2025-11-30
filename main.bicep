@@ -26,6 +26,8 @@ param adminPassword string
 @description('Existing subnet resource ID')
 param subnetId string
 
+/*
+
 @description('Name of the storage account hosting HAProxy files')
 param storageAccountName string
 
@@ -37,6 +39,8 @@ param haproxyConfigBlob string
 
 @description('Deploy script blob name, e.g. deploy-haproxy.sh')
 param deployScriptBlob string
+
+*/
 
 @description('OS disk size in GB')
 param osDiskSizeGb int = 64
@@ -129,26 +133,64 @@ module storageAccountRoleAssignment 'modules/storageAccountRoleAssignment.bicep'
   }
 }
 
-// 🔹 Custom Script Extension: downloads script + passes config URL as argument
-resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' = {
-  name: 'haproxy-customscript'
-  parent: vm
+// Existing VM resource
+// resource virtualMachine_deploy 'Microsoft.Compute/virtualMachines@2023-11-01' = { ... }
+
+resource vmName_AADSSHLoginForLinux 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' = {
+  name: 'AADSSHLogin'
   location: location
+  parent: vm
+  properties: {
+    autoUpgradeMinorVersion: true
+    publisher: 'Microsoft.Azure.ActiveDirectory'
+    type: 'AADSSHLoginForLinux'
+    typeHandlerVersion: '1.0'
+  }
+}
+
+// main.dev.bicep
+module haproxyExt 'modules/haproxy-extension.bicep' = {
+  name: 'dev-haproxy-extension'
+  scope: resourceGroup('06aa5329-5b5a-4789-bfe4-f8c2bfd81041', 'rg-haproxy')
+  params: {
+    vmName: vmName
+    location: resourceGroup().location
+    storageAccountName: 'sthaproxyshared'
+    containerName: 'haproxy'
+    configFileName: 'haproxy.cfg.dev'
+    scriptFileName: 'install_haproxy.sh'
+    extensionRunVersion: 'dev-v1' // change to dev-v2, dev-v3 to force re-run
+  }
+}
+
+/*
+@description('Array of commands to execute on the VM')
+param commandsArray array
+
+@description('Joined command string')
+param commandToExecute string = join(commandsArray, ' && ')
+
+@description('URIs of the scripts/configs in Storage')
+param scriptLocation array
+
+resource forwarding_rules 'Microsoft.Compute/virtualMachines/extensions@2024-11-01' = {
+  name: 'haproxy-CSE'
+  location: location
+  parent: vm
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'
     typeHandlerVersion: '2.1'
     autoUpgradeMinorVersion: true
-
     settings: {
-      fileUris: [
-        // download script from cross-subscription storage
-        'https://${storageAccountName}.blob.${az.environment().suffixes.storage}/${containerName}/${deployScriptBlob}'
-      ]
-
-      // Single full config mode (haproxy.cfg.dev)
-      commandToExecute: 'bash deploy-haproxy.sh "${storageAccountName}" "${containerName}" "${haproxyConfigBlob}"'
+      commandToExecute: commandToExecute
+      fileUris: scriptLocation
+    }
+    protectedSettings: {
+      managedIdentity: {
+        clientId: vm.identity.principalId
+      }
     }
   }
 }
-
+*/

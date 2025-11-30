@@ -2,10 +2,31 @@
 # HAProxy Development Environment Configuration
 #===========================================================
 
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    user haproxy
+    group haproxy
+    daemon
+    maxconn 4096
+
+    # Runtime API socket (Unix)
+    stats socket /var/run/haproxy-admin.sock mode 600 level admin expose-fd listeners
+
+defaults
+    log     global
+    mode    tcp
+    option  tcplog
+    option  dontlognull
+    timeout connect 5s
+    timeout client  50s
+    timeout server  50s
+    retries 3
+
 #-----------------------------------------------------------
 # DEV DNS Resolvers
 #-----------------------------------------------------------
-resolvers dns_env
+resolvers dev_dns
     nameserver dns1 10.10.1.4:53
     nameserver dns2 10.10.1.5:53
     resolve_retries 3
@@ -14,44 +35,54 @@ resolvers dns_env
     hold valid      5s
 
 #-----------------------------------------------------------
-# DEV Backends for SQL AlwaysOn
+# Frontends (Synapse / ADF → HAProxy → SQL)
+#-----------------------------------------------------------
+frontend fe_dev_sql_1445
+    bind *:1445
+    mode tcp
+    default_backend be_dev_sql_1445
+
+frontend fe_dev_sql_1446
+    bind *:1446
+    mode tcp
+    default_backend be_dev_sql_1446
+
+frontend fe_dev_sql_1447
+    bind *:1447
+    mode tcp
+    default_backend be_dev_sql_1447
+
+#-----------------------------------------------------------
+# Backends using AlwaysOn listener DNS
 #-----------------------------------------------------------
 
-# Port 1445 → DSWeb Listener (DEV)
-backend be_sql_1445
+# Port 1445 → DSWeb (DEV)
+backend be_dev_sql_1445
     mode tcp
     balance roundrobin
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
 
+    # dev-sql1.dev.corp:1433 is an AlwaysOn listener DNS
     server-template devsqlnode1 4 dev-sql1.dev.corp:1433 \
-        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+        check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
 
-# Port 1446 → OLTP Listener (DEV)
-backend be_sql_1446
+# Port 1446 → OLTP (DEV)
+backend be_dev_sql_1446
     mode tcp
     balance roundrobin
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
 
     server-template devsqlnode2 4 dev-sql2.dev.corp:1433 \
-        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+        check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
 
-# Port 1447 → Reporting Listener (DEV)
-backend be_sql_1447
+# Port 1447 → Reporting (DEV)
+backend be_dev_sql_1447
     mode tcp
     balance roundrobin
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
 
     server-template devsqlnode3 4 dev-sql3.dev.corp:1433 \
-        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
-# Port 1448 → Reporting Listener (DEV)
-backend be_sql_1448
-    mode tcp
-    balance roundrobin
-    option tcp-check
-    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
-
-    server-template devsqlnode4 4 dev-sql4.dev.corp:1433 \
-        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+        check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
