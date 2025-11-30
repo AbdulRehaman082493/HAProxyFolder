@@ -41,4 +41,4 @@ jobs:
           az deployment group create \
             --resource-group "rg-haproxy-vm" \
             --template-file main.bicep \
-            --parameters @"${{ steps.env.outputs.PARAM_FILE }}"
+            --parameters params/${{ steps.env.outputs.PARAM_FILE }}
