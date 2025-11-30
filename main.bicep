@@ -142,9 +142,13 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' =
 
     settings: {
       fileUris: [
+        // download script from cross-subscription storage
         'https://${storageAccountName}.blob.${az.environment().suffixes.storage}/${containerName}/${deployScriptBlob}'
       ]
+
+      // Single full config mode (haproxy.cfg.dev)
       commandToExecute: 'bash deploy-haproxy.sh "${storageAccountName}" "${containerName}" "${haproxyConfigBlob}"'
     }
   }
 }
+

@@ -4,6 +4,16 @@ set -euo pipefail
 LOG_TAG="[HAPROXY-DEPLOY]"
 
 echo "$LOG_TAG Starting HAProxy deployment on VM"
+echo "$LOG_TAG PATH is: $PATH"
+
+#-----------------------------------------------------------
+# 0. Always install Azure CLI (idempotent, safe to rerun)
+#-----------------------------------------------------------
+echo "$LOG_TAG Installing / refreshing Azure CLI..."
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+echo "$LOG_TAG az location (if any):"
+command -v az || echo "az NOT found in PATH"
 
 #-----------------------------------------------------------
 # Arguments (MSI / Storage mode):
@@ -11,15 +21,7 @@ echo "$LOG_TAG Starting HAProxy deployment on VM"
 #   $2 = container name                (e.g. haproxy)
 #   $3 = base config blob name         (haproxy.cfg OR haproxy.cfg.dev)
 #   $4 = env-specific config blob name (haproxy.cfg.dev) [optional]
-#
-# Usage patterns:
-#   1) Single full config:
-#        deploy-haproxy.sh sthaproxyshared haproxy haproxy.cfg.dev
-#
-#   2) Base + env override:
-#        deploy-haproxy.sh sthaproxyshared haproxy haproxy.cfg haproxy.cfg.dev
 #-----------------------------------------------------------
-
 if [[ $# -lt 3 ]]; then
   echo "$LOG_TAG ERROR: Not enough arguments."
   echo "$LOG_TAG Usage:"
@@ -33,11 +35,8 @@ CONTAINER_NAME="$2"
 BASE_BLOB="$3"
 ENV_BLOB="${4:-}"
 
-#-----------------------------------------------------------
-# 0. Login using managed identity
-#-----------------------------------------------------------
-echo "$LOG_TAG Logging in with managed identity..."
-az login --identity --allow-no-subscriptions >/dev/null
+echo "$LOG_TAG Logging in with managed identity using /usr/bin/az..."
+/usr/bin/az login --identity --allow-no-subscriptions >/dev/null
 
 #-----------------------------------------------------------
 # 1. Ensure HAProxy is installed
@@ -65,7 +64,7 @@ download_blob() {
   local dest_file="$2"
 
   echo "$LOG_TAG Downloading blob '$blob_name' from $ACCOUNT_NAME/$CONTAINER_NAME -> $dest_file"
-  az storage blob download \
+  /usr/bin/az storage blob download \
     --account-name "$ACCOUNT_NAME" \
     --container-name "$CONTAINER_NAME" \
     --name "$blob_name" \
