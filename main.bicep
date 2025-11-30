@@ -119,6 +119,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
 }
 
 // (Optional) role assignment module – if you use it
+// (Optional) role assignment module – if you use it
 module storageAccountRoleAssignment 'modules/storageAccountRoleAssignment.bicep' = {
   name: 'storageAccountRoleAssignment'
   scope: resourceGroup(storageSubscriptionId, storageResourceGroup)
@@ -127,6 +128,7 @@ module storageAccountRoleAssignment 'modules/storageAccountRoleAssignment.bicep'
     storageAccountName: storageAccountName
   }
 }
+
 
 // AAD login extension (as you had)
 resource vmName_AADSSHLoginForLinux 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' = {
@@ -141,10 +143,10 @@ resource vmName_AADSSHLoginForLinux 'Microsoft.Compute/virtualMachines/extension
   }
 }
 
-// HAProxy extension (NO scope override here – runs in current RG/sub)
 module haproxyExt 'modules/haproxy-extension.bicep' = {
   name: 'dev-haproxy-extension'
   params: {
+    location: location                      // 👈 pass the same param you used for VM
     vmName: vmName
     storageAccountName: storageAccountName
     storageResourceGroup: storageResourceGroup
@@ -155,3 +157,4 @@ module haproxyExt 'modules/haproxy-extension.bicep' = {
     extensionRunVersion: 'dev-v1'
   }
 }
+
