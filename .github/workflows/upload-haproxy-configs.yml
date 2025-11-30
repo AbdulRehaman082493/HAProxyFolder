@@ -28,7 +28,7 @@ jobs:
       contents: read
 
     env:
-      # 👉 Better: use secrets here, but using your current values for now
+      # 👉 For real use, move these to GitHub secrets
       AZURE_SUBSCRIPTION_ID: 06aa5329-5b5a-4789-bfe4-f8c2bfd81041
       AZURE_TENANT_ID:       40dbd045-1d9a-49fa-aae7-469259e0c673
       AZURE_CLIENT_ID:       80b9c052-dde7-493d-85f3-c8bef5e556a8
@@ -75,7 +75,7 @@ jobs:
             --container-name "$CONTAINER_NAME" \
             --file haproxy/haproxy.cfg \
             --name haproxy.cfg \
-            --overwrite false \
+            --overwrite true \
             --auth-mode login
 
       - name: Upload deploy-haproxy.sh (versioned)
@@ -85,5 +85,5 @@ jobs:
             --container-name "$CONTAINER_NAME" \
             --file haproxy/scripts/deploy-haproxy.sh \
             --name deploy-haproxy.sh \
-            --overwrite false \
+            --overwrite true \
             --auth-mode login
