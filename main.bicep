@@ -1,3 +1,5 @@
+targetScope = 'resourceGroup'
+
 @description('Environment name')
 @allowed([
   'dev'
@@ -26,28 +28,23 @@ param adminPassword string
 @description('Existing subnet resource ID')
 param subnetId string
 
-/*
-
-@description('Name of the storage account hosting HAProxy files')
-param storageAccountName string
-
-@description('Name of the container hosting HAProxy files')
-param containerName string = 'haproxy'
-
-@description('Environment config blob name, e.g. haproxy.cfg.dev')
-param haproxyConfigBlob string
-
-@description('Deploy script blob name, e.g. deploy-haproxy.sh')
-param deployScriptBlob string
-
-*/
-
 @description('OS disk size in GB')
 param osDiskSizeGb int = 64
 
 @description('Tag owner')
 param owner string = 'haproxy'
 
+// Storage information (other subscription)
+@description('Storage account subscription id (Azure subscription 1)')
+param storageSubscriptionId string
+
+@description('Storage account resource group (Azure subscription 1)')
+param storageResourceGroup string
+
+@description('Storage account name (Azure subscription 1)')
+param storageAccountName string
+
+// Networking
 var nicName = '${vmName}-nic'
 
 resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
@@ -76,12 +73,9 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
 resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   name: vmName
   location: location
-
-  // 🔹 Enable system-assigned identity
   identity: {
     type: 'SystemAssigned'
   }
-
   properties: {
     hardwareProfile: {
       vmSize: vmSize
@@ -124,18 +118,17 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   }
 }
 
-// 🔹 Assign Storage Blob Data Contributor to VM's identity on sthaproxyshared (other subscription)
+// (Optional) role assignment module – if you use it
 module storageAccountRoleAssignment 'modules/storageAccountRoleAssignment.bicep' = {
   name: 'storageAccountRoleAssignment'
-  scope: resourceGroup('06aa5329-5b5a-4789-bfe4-f8c2bfd81041', 'rg-haproxy')
+  scope: resourceGroup(storageSubscriptionId, storageResourceGroup)
   params: {
     principalId: vm.identity.principalId
+    storageAccountName: storageAccountName
   }
 }
 
-// Existing VM resource
-// resource virtualMachine_deploy 'Microsoft.Compute/virtualMachines@2023-11-01' = { ... }
-
+// AAD login extension (as you had)
 resource vmName_AADSSHLoginForLinux 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' = {
   name: 'AADSSHLogin'
   location: location
@@ -148,49 +141,17 @@ resource vmName_AADSSHLoginForLinux 'Microsoft.Compute/virtualMachines/extension
   }
 }
 
-// main.dev.bicep
+// HAProxy extension (NO scope override here – runs in current RG/sub)
 module haproxyExt 'modules/haproxy-extension.bicep' = {
   name: 'dev-haproxy-extension'
-  scope: resourceGroup('06aa5329-5b5a-4789-bfe4-f8c2bfd81041', 'rg-haproxy')
   params: {
     vmName: vmName
-    location: resourceGroup().location
-    storageAccountName: 'sthaproxyshared'
+    storageAccountName: storageAccountName
+    storageResourceGroup: storageResourceGroup
+    storageSubscriptionId: storageSubscriptionId
     containerName: 'haproxy'
     configFileName: 'haproxy.cfg.dev'
     scriptFileName: 'install_haproxy.sh'
-    extensionRunVersion: 'dev-v1' // change to dev-v2, dev-v3 to force re-run
+    extensionRunVersion: 'dev-v1'
   }
 }
-
-/*
-@description('Array of commands to execute on the VM')
-param commandsArray array
-
-@description('Joined command string')
-param commandToExecute string = join(commandsArray, ' && ')
-
-@description('URIs of the scripts/configs in Storage')
-param scriptLocation array
-
-resource forwarding_rules 'Microsoft.Compute/virtualMachines/extensions@2024-11-01' = {
-  name: 'haproxy-CSE'
-  location: location
-  parent: vm
-  properties: {
-    publisher: 'Microsoft.Azure.Extensions'
-    type: 'CustomScript'
-    typeHandlerVersion: '2.1'
-    autoUpgradeMinorVersion: true
-    settings: {
-      commandToExecute: commandToExecute
-      fileUris: scriptLocation
-    }
-    protectedSettings: {
-      managedIdentity: {
-        clientId: vm.identity.principalId
-      }
-    }
-  }
-}
-*/

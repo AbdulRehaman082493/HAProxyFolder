@@ -1,28 +1,48 @@
-param vmName string
-param location string = resourceGroup().location
-param storageAccountName string
-param configFileName string   // e.g. 'haproxy.cfg.dev'
-param scriptFileName string = 'install_haproxy.sh'
-param containerName string = 'haproxy'
-param extensionRunVersion string = 'v1'  // bump to force rerun
+targetScope = 'resourceGroup'
 
-// Existing VM (with system-assigned identity already enabled)
+@description('Name of the existing HAProxy VM in this resource group (Subscription Work)')
+param vmName string
+
+@description('Name of existing storage account that holds haproxy files')
+param storageAccountName string
+
+@description('Resource group of the storage account (in Azure subscription 1)')
+param storageResourceGroup string
+
+@description('Subscription ID of the storage account (Azure subscription 1)')
+param storageSubscriptionId string
+
+@description('Config filename in the haproxy container, e.g. haproxy.cfg.dev')
+param configFileName string
+
+@description('Script filename in the haproxy container, e.g. install_haproxy.sh')
+param scriptFileName string = 'install_haproxy.sh'
+
+@description('Blob container name (same for all envs)')
+param containerName string = 'haproxy'
+
+@description('Bump this value to force re-run of the extension')
+param extensionRunVersion string = 'v1'
+
+// VM exists in CURRENT subscription+RG
 resource vm 'Microsoft.Compute/virtualMachines@2024-07-01' existing = {
   name: vmName
 }
 
-// Existing storage account
+// Storage account exists in OTHER subscription
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
+  scope: resourceGroup(storageSubscriptionId, storageResourceGroup)
   name: storageAccountName
 }
 
-var scriptUrl = 'https://${storageAccountName}.blob.core.windows.net/${containerName}/${scriptFileName}'
-var configUrl = 'https://${storageAccountName}.blob.core.windows.net/${containerName}/${configFileName}'
+var blobBaseUrl = 'https://${storageAccount.name}.blob.${environment().suffixes.storage}'
+var scriptUrl   = '${blobBaseUrl}/${containerName}/${scriptFileName}'
+var configUrl   = '${blobBaseUrl}/${containerName}/${configFileName}'
 
 resource haproxyInstallExtension 'Microsoft.Compute/virtualMachines/extensions@2024-07-01' = {
   name: 'install-haproxy-from-blob'
   parent: vm
-  location: location
+  location: vm.location
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'
@@ -37,7 +57,6 @@ resource haproxyInstallExtension 'Microsoft.Compute/virtualMachines/extensions@2
       ]
     }
 
-    // Use system-assigned managed identity to access private blobs
     protectedSettings: {
       managedIdentity: {}
       commandToExecute: 'bash ${scriptFileName} ${configFileName}'
