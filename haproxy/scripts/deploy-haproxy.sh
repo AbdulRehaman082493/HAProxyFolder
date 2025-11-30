@@ -6,27 +6,38 @@ LOG_TAG="[HAPROXY-DEPLOY]"
 echo "$LOG_TAG Starting HAProxy deployment on VM"
 
 #-----------------------------------------------------------
-# Arguments:
-#   $1 = Base config URL (haproxy.cfg)          [optional]
-#   $2 = Env-specific config URL (haproxy.cfg.<env>) [optional]
+# Arguments (MSI / Storage mode):
+#   $1 = storage account name          (e.g. sthaproxyshared)
+#   $2 = container name                (e.g. haproxy)
+#   $3 = base config blob name         (haproxy.cfg OR haproxy.cfg.dev)
+#   $4 = env-specific config blob name (haproxy.cfg.dev) [optional]
 #
 # Usage patterns:
 #   1) Single full config:
-#        deploy-haproxy.sh "https://.../haproxy.cfg.dev"
+#        deploy-haproxy.sh sthaproxyshared haproxy haproxy.cfg.dev
+#
 #   2) Base + env override:
-#        deploy-haproxy.sh "https://.../haproxy.cfg" "https://.../haproxy.cfg.dev"
+#        deploy-haproxy.sh sthaproxyshared haproxy haproxy.cfg haproxy.cfg.dev
 #-----------------------------------------------------------
 
-BASE_CFG_URL="${1:-}"
-ENV_CFG_URL="${2:-}"
-
-if [[ -z "$BASE_CFG_URL" && -z "$ENV_CFG_URL" ]]; then
-  echo "$LOG_TAG ERROR: No config URL provided."
+if [[ $# -lt 3 ]]; then
+  echo "$LOG_TAG ERROR: Not enough arguments."
   echo "$LOG_TAG Usage:"
-  echo "  $0 <fullConfigUrl>"
-  echo "  $0 <baseConfigUrl> <envConfigUrl>"
+  echo "  $0 <accountName> <containerName> <fullConfigBlob>"
+  echo "  $0 <accountName> <containerName> <baseConfigBlob> <envConfigBlob>"
   exit 1
 fi
+
+ACCOUNT_NAME="$1"
+CONTAINER_NAME="$2"
+BASE_BLOB="$3"
+ENV_BLOB="${4:-}"
+
+#-----------------------------------------------------------
+# 0. Login using managed identity
+#-----------------------------------------------------------
+echo "$LOG_TAG Logging in with managed identity..."
+az login --identity --allow-no-subscriptions >/dev/null
 
 #-----------------------------------------------------------
 # 1. Ensure HAProxy is installed
@@ -40,7 +51,7 @@ else
 fi
 
 #-----------------------------------------------------------
-# 2. Download config file(s) to temp
+# 2. Download config blob(s) to temp
 #-----------------------------------------------------------
 TMP_DIR="/tmp/haproxy-deploy"
 mkdir -p "$TMP_DIR"
@@ -49,25 +60,33 @@ TMP_BASE_CFG="$TMP_DIR/haproxy.base.cfg"
 TMP_ENV_CFG="$TMP_DIR/haproxy.env.cfg"
 TMP_MERGED_CFG="$TMP_DIR/haproxy.merged.cfg"
 
-if [[ -n "$BASE_CFG_URL" && -n "$ENV_CFG_URL" ]]; then
-  echo "$LOG_TAG Mode: Base + Env override"
-  echo "$LOG_TAG Downloading base config: $BASE_CFG_URL"
-  curl -sSL "$BASE_CFG_URL" -o "$TMP_BASE_CFG"
+download_blob() {
+  local blob_name="$1"
+  local dest_file="$2"
 
-  echo "$LOG_TAG Downloading env config:  $ENV_CFG_URL"
-  curl -sSL "$ENV_CFG_URL" -o "$TMP_ENV_CFG"
+  echo "$LOG_TAG Downloading blob '$blob_name' from $ACCOUNT_NAME/$CONTAINER_NAME -> $dest_file"
+  az storage blob download \
+    --account-name "$ACCOUNT_NAME" \
+    --container-name "$CONTAINER_NAME" \
+    --name "$blob_name" \
+    --file "$dest_file" \
+    --auth-mode login \
+    --output none
+}
+
+if [[ -n "$ENV_BLOB" ]]; then
+  echo "$LOG_TAG Mode: Base + Env override"
+
+  download_blob "$BASE_BLOB" "$TMP_BASE_CFG"
+  download_blob "$ENV_BLOB"  "$TMP_ENV_CFG"
 
   echo "$LOG_TAG Merging base + env config into $TMP_MERGED_CFG"
   cat "$TMP_BASE_CFG" >  "$TMP_MERGED_CFG"
   echo ""              >> "$TMP_MERGED_CFG"
   cat "$TMP_ENV_CFG"   >> "$TMP_MERGED_CFG"
-
 else
-  # Single full config file
-  CFG_URL="${BASE_CFG_URL:-$ENV_CFG_URL}"
   echo "$LOG_TAG Mode: Single full config"
-  echo "$LOG_TAG Downloading config: $CFG_URL"
-  curl -sSL "$CFG_URL" -o "$TMP_MERGED_CFG"
+  download_blob "$BASE_BLOB" "$TMP_MERGED_CFG"
 fi
 
 #-----------------------------------------------------------

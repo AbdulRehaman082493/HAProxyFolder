@@ -141,13 +141,11 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' =
     autoUpgradeMinorVersion: true
 
     settings: {
-      // Download deploy-haproxy.sh from private container
       fileUris: [
+        // download only the script itself
         'https://${storageAccountName}.blob.${az.environment().suffixes.storage}/${containerName}/${deployScriptBlob}'
       ]
-
-      // 🚀 Pass the config URL as argument to the script
-      commandToExecute: 'bash deploy-haproxy.sh "https://${storageAccountName}.blob.${az.environment().suffixes.storage}/${containerName}/${haproxyConfigBlob}"'
+      commandToExecute: 'bash deploy-haproxy.sh "${storageAccountName}" "${containerName}" "${haproxyConfigBlob}"'
     }
   }
 }
