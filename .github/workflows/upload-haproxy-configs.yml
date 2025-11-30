@@ -33,7 +33,7 @@ jobs:
       AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
 
       # 🔹 SAME storage account for all envs
-      STORAGE_ACCOUNT:       <yourSingleStorageAccount>
+      STORAGE_ACCOUNT:       sthaproxyshared
 
       # 🔹 SAME container for all envs
       CONTAINER_NAME:        haproxy
