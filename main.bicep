@@ -151,26 +151,25 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' =
   name: 'haproxy-customscript'
   parent: vm
   location: location
-
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'
     typeHandlerVersion: '2.1'
     autoUpgradeMinorVersion: true
 
+    // ✅ Public settings: only non-sensitive config
     settings: {
       fileUris: [
+        // blob URLs WITHOUT SAS, private container
         'https://${storageAccountName}.blob.core.windows.net/${containerName}/${haproxyConfigBlob}'
         'https://${storageAccountName}.blob.core.windows.net/${containerName}/${deployScriptBlob}'
       ]
-
       commandToExecute: 'bash deploy-haproxy.sh'
+    }
 
-      authentication: {
-        managedIdentity: {
-          // empty → use VM's system-assigned identity
-        }
-      }
+    // ✅ Protected settings: tell the extension to use the VM's system-assigned identity
+    protectedSettings: {
+      managedIdentity: {} // empty object = use parent VM system-assigned identity
     }
   }
 }
