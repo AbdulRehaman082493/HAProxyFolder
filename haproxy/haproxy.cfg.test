@@ -1,0 +1,49 @@
+#===========================================================
+# HAProxy Test Environment Configuration
+#===========================================================
+
+#-----------------------------------------------------------
+# TEST DNS Resolvers
+#-----------------------------------------------------------
+resolvers dns_env
+    nameserver dns1 10.20.1.4:53
+    nameserver dns2 10.20.1.5:53
+    resolve_retries 3
+    timeout resolve 5s
+    timeout retry   1s
+    hold valid      5s
+
+#-----------------------------------------------------------
+# TEST Backends for SQL AlwaysOn
+#-----------------------------------------------------------
+
+# Port 1445 → DSWeb Listener (TEST)
+backend be_sql_1445
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    # Replace test-sql1.test.corp with your TEST listener FQDN
+    server-template testsqlnode1 4 test-sql1.test.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1446 → OLTP Listener (TEST)
+backend be_sql_1446
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template testsqlnode2 4 test-sql2.test.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1447 → Reporting Listener (TEST)
+backend be_sql_1447
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template testsqlnode3 4 test-sql3.test.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip

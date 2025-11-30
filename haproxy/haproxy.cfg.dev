@@ -1,0 +1,48 @@
+#===========================================================
+# HAProxy Development Environment Configuration
+#===========================================================
+
+#-----------------------------------------------------------
+# DEV DNS Resolvers
+#-----------------------------------------------------------
+resolvers dns_env
+    nameserver dns1 10.10.1.4:53
+    nameserver dns2 10.10.1.5:53
+    resolve_retries 3
+    timeout resolve 5s
+    timeout retry   1s
+    hold valid      5s
+
+#-----------------------------------------------------------
+# DEV Backends for SQL AlwaysOn
+#-----------------------------------------------------------
+
+# Port 1445 → DSWeb Listener (DEV)
+backend be_sql_1445
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template devsqlnode1 4 dev-sql1.dev.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1446 → OLTP Listener (DEV)
+backend be_sql_1446
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template devsqlnode2 4 dev-sql2.dev.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1447 → Reporting Listener (DEV)
+backend be_sql_1447
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template devsqlnode3 4 dev-sql3.dev.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip

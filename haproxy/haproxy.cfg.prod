@@ -1,0 +1,49 @@
+#===========================================================
+# HAProxy Production Environment Configuration
+#===========================================================
+
+#-----------------------------------------------------------
+# PROD DNS Resolvers
+#-----------------------------------------------------------
+resolvers dns_env
+    nameserver dns1 10.40.1.4:53
+    nameserver dns2 10.40.1.5:53
+    resolve_retries 3
+    timeout resolve 5s
+    timeout retry   1s
+    hold valid      10s    # slightly higher TTL for prod
+
+#-----------------------------------------------------------
+# PROD Backends for SQL AlwaysOn
+#-----------------------------------------------------------
+
+# Port 1445 → DSWeb Listener (PROD)
+backend be_sql_1445
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    # Replace prod-sql1.prod.corp with your PROD listener FQDN
+    server-template prodsqlnode1 4 prod-sql1.prod.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1446 → OLTP Listener (PROD)
+backend be_sql_1446
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template prodsqlnode2 4 prod-sql2.prod.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1447 → Reporting Listener (PROD)
+backend be_sql_1447
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template prodsqlnode3 4 prod-sql3.prod.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip

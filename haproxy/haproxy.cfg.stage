@@ -1,0 +1,49 @@
+#===========================================================
+# HAProxy Stage Environment Configuration
+#===========================================================
+
+#-----------------------------------------------------------
+# STAGE DNS Resolvers
+#-----------------------------------------------------------
+resolvers dns_env
+    nameserver dns1 10.30.1.4:53
+    nameserver dns2 10.30.1.5:53
+    resolve_retries 3
+    timeout resolve 5s
+    timeout retry   1s
+    hold valid      5s
+
+#-----------------------------------------------------------
+# STAGE Backends for SQL AlwaysOn
+#-----------------------------------------------------------
+
+# Port 1445 → DSWeb Listener (STAGE)
+backend be_sql_1445
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    # Replace stage-sql1.stage.corp with your STAGE listener FQDN
+    server-template stagesqlnode1 4 stage-sql1.stage.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1446 → OLTP Listener (STAGE)
+backend be_sql_1446
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template stagesqlnode2 4 stage-sql2.stage.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
+
+# Port 1447 → Reporting Listener (STAGE)
+backend be_sql_1447
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+
+    server-template stagesqlnode3 4 stage-sql3.stage.corp:1433 \
+        check resolvers dns_env init-addr none resolve-opts allow-dup-ip
