@@ -143,11 +143,11 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' =
     settings: {
       // Download deploy-haproxy.sh from private container
       fileUris: [
-        'https://${storageAccountName}.blob.${environment().suffixes.storage}/${containerName}/${deployScriptBlob}'
+        'https://${storageAccountName}.blob.${az.environment().suffixes.storage}/${containerName}/${deployScriptBlob}'
       ]
 
       // 🚀 Pass the config URL as argument to the script
-      commandToExecute: 'bash deploy-haproxy.sh "https://${storageAccountName}.blob.${environment().suffixes.storage}/${containerName}/${haproxyConfigBlob}"'
+      commandToExecute: 'bash deploy-haproxy.sh "https://${storageAccountName}.blob.${az.environment().suffixes.storage}/${containerName}/${haproxyConfigBlob}"'
     }
   }
 }

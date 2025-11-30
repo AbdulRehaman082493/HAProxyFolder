@@ -10,8 +10,8 @@ param vmSize = 'Standard_B2ms'
 
 param adminUsername = 'rehu493'
 
-@secure()
-param adminPassword = '11NE1A0493sk@'  // will be secure because main.bicep has @secure
+// No @secure() here – only value
+param adminPassword = '11NE1A0493sk@'
 
 param subnetId = '/subscriptions/1ad372fa-1532-4709-9b46-17de54fa0b71/resourceGroups/rg-haproxy-vm/providers/Microsoft.Network/virtualNetworks/vnet-haproxy-vm/subnets/default'
 
