@@ -28,18 +28,16 @@ jobs:
       contents: read
 
     env:
-      # 👉 For real use, move these to GitHub secrets
+      # ⚠️ For real use, move these to GitHub secrets.
       AZURE_SUBSCRIPTION_ID: 06aa5329-5b5a-4789-bfe4-f8c2bfd81041
       AZURE_TENANT_ID:       40dbd045-1d9a-49fa-aae7-469259e0c673
       AZURE_CLIENT_ID:       80b9c052-dde7-493d-85f3-c8bef5e556a8
 
-      # 🔹 SAME storage account for all envs
+      # Shared storage account / container
       STORAGE_ACCOUNT:       sthaproxyshared
-
-      # 🔹 SAME container for all envs
       CONTAINER_NAME:        haproxy
 
-      # if workflow_dispatch: use selected env; if push: default dev
+      # If workflow_dispatch: use selected env; if push: default dev
       ENV_NAME:              ${{ github.event.inputs.environment || 'dev' }}
 
     steps:
@@ -53,12 +51,13 @@ jobs:
           tenant-id:      ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
+      # ✅ ENV-SPECIFIC CONFIGS – SHOULD HAVE VERSIONING
       - name: Upload environment-specific haproxy config (versioned)
         run: |
           CONFIG_FILE="haproxy/haproxy.cfg.${ENV_NAME}"   # e.g. haproxy/haproxy.cfg.dev
           BLOB_NAME="haproxy.cfg.${ENV_NAME}"             # e.g. haproxy.cfg.dev
 
-          echo "Uploading $CONFIG_FILE to container '${CONTAINER_NAME}' as blob '$BLOB_NAME'"
+          echo "Uploading $CONFIG_FILE to container '${CONTAINER_NAME}' as blob '$BLOB_NAME' (with overwrite/versioning)"
 
           az storage blob upload \
             --account-name "$STORAGE_ACCOUNT" \
@@ -68,22 +67,54 @@ jobs:
             --overwrite true \
             --auth-mode login
 
-      - name: Upload base haproxy.cfg (versioned)
+      # ❌ BASE CONFIG – SHOULD *NOT* HAVE VERSIONING
+      # Upload only once; if it already exists, skip (no overwrite → no new version)
+      - name: Upload base haproxy.cfg if not exists (no versioning)
         run: |
-          az storage blob upload \
-            --account-name "$STORAGE_ACCOUNT" \
-            --container-name "$CONTAINER_NAME" \
-            --file haproxy/haproxy.cfg \
-            --name haproxy.cfg \
-            --overwrite true \
-            --auth-mode login
+          echo "Checking if base haproxy.cfg exists..."
 
-      - name: Upload deploy-haproxy.sh (versioned)
-        run: |
-          az storage blob upload \
+          EXISTS=$(az storage blob exists \
             --account-name "$STORAGE_ACCOUNT" \
             --container-name "$CONTAINER_NAME" \
-            --file haproxy/scripts/deploy-haproxy.sh \
+            --name haproxy.cfg \
+            --auth-mode login \
+            --query "exists" -o tsv)
+
+          if [ "$EXISTS" = "true" ]; then
+            echo "Blob 'haproxy.cfg' already exists. Skipping upload to avoid versioning."
+          else
+            echo "Blob 'haproxy.cfg' does not exist. Uploading once (no overwrite)."
+            az storage blob upload \
+              --account-name "$STORAGE_ACCOUNT" \
+              --container-name "$CONTAINER_NAME" \
+              --file haproxy/haproxy.cfg \
+              --name haproxy.cfg \
+              --overwrite false \
+              --auth-mode login
+          fi
+
+      # ❌ SCRIPT – SHOULD *NOT* HAVE VERSIONING
+      # Upload only once; skip on future runs
+      - name: Upload deploy-haproxy.sh if not exists (no versioning)
+        run: |
+          echo "Checking if deploy-haproxy.sh exists..."
+
+          EXISTS=$(az storage blob exists \
+            --account-name "$STORAGE_ACCOUNT" \
+            --container-name "$CONTAINER_NAME" \
             --name deploy-haproxy.sh \
-            --overwrite true \
-            --auth-mode login
+            --auth-mode login \
+            --query "exists" -o tsv)
+
+          if [ "$EXISTS" = "true" ]; then
+            echo "Blob 'deploy-haproxy.sh' already exists. Skipping upload to avoid versioning."
+          else
+            echo "Blob 'deploy-haproxy.sh' does not exist. Uploading once (no overwrite)."
+            az storage blob upload \
+              --account-name "$STORAGE_ACCOUNT" \
+              --container-name "$CONTAINER_NAME" \
+              --file haproxy/scripts/deploy-haproxy.sh \
+              --name deploy-haproxy.sh \
+              --overwrite false \
+              --auth-mode login
+          fi
