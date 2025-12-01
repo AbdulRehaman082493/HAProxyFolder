@@ -35,7 +35,7 @@ resolvers dev_dns
     hold valid      5s
 
 #-----------------------------------------------------------
-# Frontends
+# Frontends (Synapse / ADF → HAProxy → SQL)
 #-----------------------------------------------------------
 frontend fe_dev_sql_1445
     bind *:1445
@@ -53,29 +53,29 @@ frontend fe_dev_sql_1447
     default_backend be_dev_sql_1447
 
 #-----------------------------------------------------------
-# Backends
+# Backends using AlwaysOn listener DNS
 #-----------------------------------------------------------
 
+# Port 1445 → DSWeb (DEV)
 backend be_dev_sql_1445
     mode tcp
     balance roundrobin
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
-    server-template devsqlnode1 4 dev-sql1.dev.corp:1433 \
-        check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
+    server-template devsqlnode1 4 dev-sql1.dev.corp:1433 check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
 
+# Port 1446 → OLTP (DEV)
 backend be_dev_sql_1446
     mode tcp
     balance roundrobin
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
-    server-template devsqlnode2 4 dev-sql2.dev.corp:1433 \
-        check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
+    server-template devsqlnode2 4 dev-sql2.dev.corp:1433 check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
 
+# Port 1447 → Reporting (DEV)
 backend be_dev_sql_1447
     mode tcp
     balance roundrobin
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
-    server-template devsqlnode3 4 dev-sql3.dev.corp:1433 \
-        check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
+    server-template devsqlnode3 4 dev-sql3.dev.corp:1433 check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
