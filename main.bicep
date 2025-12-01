@@ -153,7 +153,7 @@ module haproxyExt 'modules/haproxy-extension.bicep' = {
     storageSubscriptionId: storageSubscriptionId
     containerName: 'haproxy'
     configFileName: 'haproxy.cfg.dev'
-    scriptFileName: 'install_haproxy.sh'
+    scriptFileName: 'deploy-haproxy.sh'
     extensionRunVersion: 'dev-v1'
   }
 }
