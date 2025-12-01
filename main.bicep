@@ -146,8 +146,8 @@ resource vmName_AADSSHLoginForLinux 'Microsoft.Compute/virtualMachines/extension
 module haproxyExt 'modules/haproxy-extension.bicep' = {
   name: 'dev-haproxy-extension'
   params: {
-    location: location                      // 👈 pass the same param you used for VM
-    vmName: vmName
+    location: location                 // same param you use for the VM
+    vmName: vmName                     // same VM name
     storageAccountName: storageAccountName
     storageResourceGroup: storageResourceGroup
     storageSubscriptionId: storageSubscriptionId
@@ -157,4 +157,5 @@ module haproxyExt 'modules/haproxy-extension.bicep' = {
     extensionRunVersion: 'dev-v1'
   }
 }
+
 
