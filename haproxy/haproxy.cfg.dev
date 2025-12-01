@@ -79,3 +79,12 @@ backend be_dev_sql_1447
     option tcp-check
     default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
     server-template devsqlnode3 4 dev-sql3.dev.corp:1433 check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
+
+# Port 1448 → Reporting (DEV)
+backend be_dev_sql_1448
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    default-server inter 3s rise 1 fall 1 resolve-prefer ipv4
+    server-template devsqlnode4 4 dev-sql4.dev.corp:1433 check resolvers dev_dns init-addr none resolve-opts allow-dup-ip
+

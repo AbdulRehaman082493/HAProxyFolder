@@ -154,7 +154,7 @@ module haproxyExt 'modules/haproxy-extension.bicep' = {
     containerName: 'haproxy'
     configFileName: 'haproxy.cfg.dev'
     scriptFileName: 'deploy-haproxy.sh'
-    extensionRunVersion: 'dev-v2'
+    extensionRunVersion: 'dev-v3'
   }
 }
 
