@@ -35,9 +35,7 @@ on:
 jobs:
   upload-haproxy-files:
     name: Upload HAProxy Config & Script
-    runs-on:
-      group: azure-large-runners
-      labels: ubuntu-azure-large
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
