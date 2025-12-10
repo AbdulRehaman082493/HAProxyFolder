@@ -7,7 +7,7 @@ on:
         description: "Select environment"
         type: choice
         required: true
-        options: [dev, test, test-ussc, stage, prod, prod-ussc]
+        options: [dev, test]
         default: dev
 
 jobs:
