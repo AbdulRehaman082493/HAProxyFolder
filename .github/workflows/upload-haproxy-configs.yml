@@ -1,120 +1,82 @@
-name: Upload HAProxy Configs & Script (Versioned)
+name: Upload HAProxy Config & Script (Reusable)
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       environment:
-        description: "Select environment"
+      storageAccount:
         required: true
-        type: choice
-        options:
-          - dev
-          - test
-          - stage
-          - prod
+        type: string
 
-  push:
-    branches:
-      - main
-    paths:
-      - 'haproxy/**'
+      container:
+        required: true
+        type: string
+
+      haproxyConfigPath:
+        required: true
+        type: string
+
+      haproxyConfigBlobName:
+        required: true
+        type: string
+
+      installScriptPath:
+        required: true
+        type: string
+
+      installScriptBlobName:
+        required: true
+        type: string
+
+    secrets:
+      azureCredentials:
+        required: true
 
 jobs:
-  upload-haproxy:
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
-
-    env:
-      # ⚠️ For real use, move these to GitHub secrets.
-      AZURE_SUBSCRIPTION_ID: 06aa5329-5b5a-4789-bfe4-f8c2bfd81041
-      AZURE_TENANT_ID:       40dbd045-1d9a-49fa-aae7-469259e0c673
-      AZURE_CLIENT_ID:       80b9c052-dde7-493d-85f3-c8bef5e556a8
-
-      # Shared storage account / container
-      STORAGE_ACCOUNT:       sthaproxyshared
-      CONTAINER_NAME:        haproxy
-
-      # If workflow_dispatch: use selected env; if push: default dev
-      ENV_NAME:              ${{ github.event.inputs.environment || 'dev' }}
+  upload-haproxy-files:
+    name: Upload HAProxy Config & Script
+    runs-on:
+      group: azure-large-runners
+      labels: ubuntu-azure-large
 
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC)
+      - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id:      ${{ env.AZURE_CLIENT_ID }}
-          tenant-id:      ${{ env.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.azureCredentials }}
 
-      # ✅ ENV-SPECIFIC CONFIGS – SHOULD HAVE VERSIONING
-      - name: Upload environment-specific haproxy config (versioned)
+      - name: Validate files
         run: |
-          CONFIG_FILE="haproxy/haproxy.cfg.${ENV_NAME}"   # e.g. haproxy/haproxy.cfg.dev
-          BLOB_NAME="haproxy.cfg.${ENV_NAME}"             # e.g. haproxy.cfg.dev
+          set -e
+          test -f "${{ inputs.haproxyConfigPath }}"
+          test -f "${{ inputs.installScriptPath }}"
 
-          echo "Uploading $CONFIG_FILE to container '${CONTAINER_NAME}' as blob '$BLOB_NAME' (with overwrite/versioning)"
+      - name: Ensure container exists
+        run: |
+          az storage container create \
+            --account-name "${{ inputs.storageAccount }}" \
+            --name "${{ inputs.container }}" \
+            --auth-mode login
 
+      - name: Upload HAProxy config
+        run: |
           az storage blob upload \
-            --account-name "$STORAGE_ACCOUNT" \
-            --container-name "$CONTAINER_NAME" \
-            --file "$CONFIG_FILE" \
-            --name "$BLOB_NAME" \
+            --account-name "${{ inputs.storageAccount }}" \
+            --container-name "${{ inputs.container }}" \
+            --file "${{ inputs.haproxyConfigPath }}" \
+            --name "${{ inputs.haproxyConfigBlobName }}" \
             --overwrite true \
             --auth-mode login
 
-      # ❌ BASE CONFIG – SHOULD *NOT* HAVE VERSIONING
-      # Upload only once; if it already exists, skip (no overwrite → no new version)
-      - name: Upload base haproxy.cfg if not exists (no versioning)
+      - name: Upload Install Script
         run: |
-          echo "Checking if base haproxy.cfg exists..."
-
-          EXISTS=$(az storage blob exists \
-            --account-name "$STORAGE_ACCOUNT" \
-            --container-name "$CONTAINER_NAME" \
-            --name haproxy.cfg \
-            --auth-mode login \
-            --query "exists" -o tsv)
-
-          if [ "$EXISTS" = "true" ]; then
-            echo "Blob 'haproxy.cfg' already exists. Skipping upload to avoid versioning."
-          else
-            echo "Blob 'haproxy.cfg' does not exist. Uploading once (no overwrite)."
-            az storage blob upload \
-              --account-name "$STORAGE_ACCOUNT" \
-              --container-name "$CONTAINER_NAME" \
-              --file haproxy/haproxy.cfg \
-              --name haproxy.cfg \
-              --overwrite false \
-              --auth-mode login
-          fi
-
-      # ❌ SCRIPT – SHOULD *NOT* HAVE VERSIONING
-      # Upload only once; skip on future runs
-      - name: Upload deploy-haproxy.sh if not exists (no versioning)
-        run: |
-          echo "Checking if deploy-haproxy.sh exists..."
-
-          EXISTS=$(az storage blob exists \
-            --account-name "$STORAGE_ACCOUNT" \
-            --container-name "$CONTAINER_NAME" \
-            --name deploy-haproxy.sh \
-            --auth-mode login \
-            --query "exists" -o tsv)
-
-          if [ "$EXISTS" = "true" ]; then
-            echo "Blob 'deploy-haproxy.sh' already exists. Skipping upload to avoid versioning."
-          else
-            echo "Blob 'deploy-haproxy.sh' does not exist. Uploading once (no overwrite)."
-            az storage blob upload \
-              --account-name "$STORAGE_ACCOUNT" \
-              --container-name "$CONTAINER_NAME" \
-              --file haproxy/scripts/deploy-haproxy.sh \
-              --name deploy-haproxy.sh \
-              --overwrite false \
-              --auth-mode login
-          fi
+          az storage blob upload \
+            --account-name "${{ inputs.storageAccount }}" \
+            --container-name "${{ inputs.container }}" \
+            --file "${{ inputs.installScriptPath }}" \
+            --name "${{ inputs.installScriptBlobName }}" \
+            --overwrite true \
+            --auth-mode login
