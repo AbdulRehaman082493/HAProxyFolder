@@ -4,6 +4,9 @@ on:
   workflow_call:
     inputs:
       environment:
+        required: true
+        type: string
+
       storageAccount:
         required: true
         type: string
