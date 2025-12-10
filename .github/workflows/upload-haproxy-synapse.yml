@@ -17,7 +17,7 @@ jobs:
     uses: ./.github/workflows/upload-haproxy-artifacts.yml@main
     with:
       environment: ${{ inputs.environment }}
-      storageAccount: itopsdevusnchaproxy
+      storageAccount: sthaproxyshared
       container: synapse
       haproxyConfigPath: haproxy/haproxy.cfg.${{ inputs.environment }}
       haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
