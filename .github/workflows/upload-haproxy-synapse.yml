@@ -1,0 +1,27 @@
+name: Upload HAProxy Files (Synapse)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment"
+        type: choice
+        required: true
+        options: [dev, test, test-ussc, stage, prod, prod-ussc]
+        default: dev
+
+jobs:
+  upload:
+    environment: ${{ inputs.environment }}   # important for env secrets
+
+    uses: ./.github/workflows/upload-haproxy-artifacts.yml@main
+    with:
+      environment: ${{ inputs.environment }}
+      storageAccount: itopsdevusnchaproxy
+      container: synapse
+      haproxyConfigPath: haproxy/haproxy.cfg.${{ inputs.environment }}
+      haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
+      installScriptPath: haproxy/scripts/install-haproxy.sh
+      installScriptBlobName: install-haproxy.sh
+    secrets:
+      azureCredentials: ${{ secrets.AZURE_CREDENTIALS_ITOps }}
