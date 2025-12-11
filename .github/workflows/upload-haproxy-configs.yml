@@ -36,8 +36,8 @@ jobs:
   upload-haproxy-files:
     runs-on: ubuntu-latest
 
-    # This is where your *environment-level* secret AZURE_CREDENTIALS is attached
-    environment: ${{ inputs.environment }}
+    # NO environment: here – the environment is set in the caller job
+    # and its secrets are inherited into this job.
 
     steps:
       - name: Checkout repository
@@ -46,13 +46,7 @@ jobs:
       - name: Azure login (service principal via env secret)
         uses: azure/login@v2
         with:
-          # AZURE_CREDENTIALS is an *environment secret* containing the JSON:
-          # {
-          #   "clientId": "...",
-          #   "clientSecret": "...",
-          #   "subscriptionId": "...",
-          #   "tenantId": "..."
-          # }
+          # This comes from the caller job's environment + secrets: inherit
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Upload HAProxy config and script to Storage
