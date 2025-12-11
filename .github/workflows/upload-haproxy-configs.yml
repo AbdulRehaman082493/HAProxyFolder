@@ -31,13 +31,14 @@ on:
         required: true
         type: string
 
+    secrets:
+      azureCredentials:
+        required: true
+
 jobs:
   upload-haproxy-files:
     name: Upload HAProxy Config & Script
     runs-on: ubuntu-latest
-
-    # environment secrets pulled here
-    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout code
@@ -46,10 +47,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
-          tenant-id: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
-          subscription-id: ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
-          client-secret: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
+          creds: ${{ secrets.azureCredentials }}
 
       - name: Validate files
         run: |
