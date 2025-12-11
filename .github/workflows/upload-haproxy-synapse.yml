@@ -14,7 +14,10 @@ jobs:
   upload:
     name: Upload HAProxy Files
 
-    # Call the reusable workflow correctly
+    # Attach to environment (dev or test) to load env secrets
+    environment: ${{ inputs.environment }}
+
+    # Call the reusable workflow
     uses: AbdulRehaman082493/HAProxyFolder/.github/workflows/upload-haproxy-configs.yml@main
 
     with:
@@ -25,3 +28,6 @@ jobs:
       haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
       installScriptPath: haproxy/scripts/install-haproxy.sh
       installScriptBlobName: install-haproxy.sh
+
+    secrets:
+      azureCredentials: ${{ secrets.AZURE_CREDENTIALS }}
