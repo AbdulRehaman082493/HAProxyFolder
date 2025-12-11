@@ -1,4 +1,4 @@
-name: Upload HAProxy Config & Script
+name: Reusable - Upload HAProxy Config & Script
 
 on:
   workflow_call:
@@ -27,33 +27,45 @@ on:
 
 jobs:
   upload:
+    name: Upload HAProxy Config & Script
     runs-on: ubuntu-latest
+
+    # IMPORTANT: this is where we bind to the GitHub Environment
+    # (dev / test / stage / prod) so that AZURE_CREDENTIALS
+    # environment secret is available here.
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Azure Login
+      - name: Azure login (service principal via environment secret)
         uses: azure/login@v2
         with:
+          # AZURE_CREDENTIALS must be created as an **Environment secret**
+          # in the 'dev', 'test', 'stage', 'prod' environments.
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Upload files
+      - name: Upload HAProxy config
         uses: azure/cli@v2
         with:
+          azcliversion: latest
           inlineScript: |
             az storage blob upload \
-              --auth-mode login \
-              --account-name "${{ inputs.storageAccount }}" \
-              --container-name "${{ inputs.container }}" \
+              --account-name ${{ inputs.storageAccount }} \
+              --container-name ${{ inputs.container }} \
               --file "${{ inputs.haproxyConfigPath }}" \
               --name "${{ inputs.haproxyConfigBlobName }}" \
               --overwrite true
 
+      - name: Upload install script
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
             az storage blob upload \
-              --auth-mode login \
-              --account-name "${{ inputs.storageAccount }}" \
-              --container-name "${{ inputs.container }}" \
+              --account-name ${{ inputs.storageAccount }} \
+              --container-name ${{ inputs.container }} \
               --file "${{ inputs.installScriptPath }}" \
               --name "${{ inputs.installScriptBlobName }}" \
               --overwrite true
