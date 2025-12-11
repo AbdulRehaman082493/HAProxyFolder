@@ -11,26 +11,28 @@ on:
           - dev
           - test
           - test-ussc
+          - stage
           - prod
           - prod-ussc
-          - stage
         default: dev
 
 jobs:
   upload-haproxy:
-    uses: your-org/central-repo-name/.github/workflows/upload-haproxy-files.yml@main
+    # Reuse the workflow from this SAME repo
+    uses: ./.github/workflows/upload-haproxy-files.yml
     with:
       environment: ${{ inputs.environment }}
 
-      # config file settings
-      config-storage-account: itopsusncsa001
-      config-container-name: synapse
+      # === config file upload ===
+      # TODO: replace these with your real values
+      config-storage-account: your-config-storage-account
+      config-container-name: your-config-container
       config-file-path: haproxy/haproxy.cfg.${{ inputs.environment }}
       config-blob-name: haproxy.cfg.${{ inputs.environment }}
 
-      # script file settings
-      script-storage-account: rehusr0845
-      script-container-name: synapse
+      # === script file upload ===
+      script-storage-account: your-script-storage-account
+      script-container-name: your-script-container
       script-file-path: haproxy/scripts/install-haproxy.sh
       script-blob-name: install-haproxy.sh
 
