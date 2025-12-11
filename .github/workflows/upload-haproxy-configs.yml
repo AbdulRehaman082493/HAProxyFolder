@@ -1,4 +1,4 @@
-name: Reusable - Upload HAProxy Config & Script
+name: Upload HAProxy Configs & Script (reusable)
 
 on:
   workflow_call:
@@ -6,66 +6,88 @@ on:
       environment:
         required: true
         type: string
-      storageAccount:
+
+      # config file upload
+      config-storage-account:
         required: true
         type: string
-      container:
+      config-container-name:
         required: true
         type: string
-      haproxyConfigPath:
+      config-file-path:
         required: true
         type: string
-      haproxyConfigBlobName:
+      config-blob-name:
         required: true
         type: string
-      installScriptPath:
+
+      # script file upload
+      script-storage-account:
         required: true
         type: string
-      installScriptBlobName:
+      script-container-name:
         required: true
         type: string
+      script-file-path:
+        required: true
+        type: string
+      script-blob-name:
+        required: true
+        type: string
+
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
 
 jobs:
-  upload:
-    name: Upload HAProxy Config & Script
-    runs-on: ubuntu-latest
-
-    # IMPORTANT: this is where we bind to the GitHub Environment
-    # (dev / test / stage / prod) so that AZURE_CREDENTIALS
-    # environment secret is available here.
+  upload-haproxy-files:
+    name: Upload HAProxy config & script
+    runs-on:
+      group: azure-large-runners
+      labels: ubuntu-azure-large
     environment: ${{ inputs.environment }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure login (service principal via environment secret)
+      - name: Azure Login
         uses: azure/login@v2
         with:
-          # AZURE_CREDENTIALS must be created as an **Environment secret**
-          # in the 'dev', 'test', 'stage', 'prod' environments.
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Upload HAProxy config
-        uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob upload \
-              --account-name ${{ inputs.storageAccount }} \
-              --container-name ${{ inputs.container }} \
-              --file "${{ inputs.haproxyConfigPath }}" \
-              --name "${{ inputs.haproxyConfigBlobName }}" \
-              --overwrite true
+      # upload config file
+      - name: Upload environment-specific HAProxy config (versioned)
+        env:
+          STORAGE_ACCOUNT: ${{ inputs.config-storage-account }}
+          CONTAINER_NAME: ${{ inputs.config-container-name }}
+          CONFIG_FILE: ${{ inputs.config-file-path }}
+          BLOB_NAME: ${{ inputs.config-blob-name }}
+        run: |
+          echo "Uploading $CONFIG_FILE to container '${CONTAINER_NAME}' as blob '$BLOB_NAME' (with overwrite/versioning)"
 
-      - name: Upload install script
-        uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob upload \
-              --account-name ${{ inputs.storageAccount }} \
-              --container-name ${{ inputs.container }} \
-              --file "${{ inputs.installScriptPath }}" \
-              --name "${{ inputs.installScriptBlobName }}" \
-              --overwrite true
+          az storage blob upload \
+            --account-name "$STORAGE_ACCOUNT" \
+            --container-name "$CONTAINER_NAME" \
+            --file "$CONFIG_FILE" \
+            --name "$BLOB_NAME" \
+            --overwrite true \
+            --auth-mode login
+
+      # upload script file
+      - name: Upload HAProxy installation script file (versioned)
+        env:
+          STORAGE_ACCOUNT: ${{ inputs.script-storage-account }}
+          CONTAINER_NAME: ${{ inputs.script-container-name }}
+          SCRIPT_FILE: ${{ inputs.script-file-path }}
+          BLOB_NAME: ${{ inputs.script-blob-name }}
+        run: |
+          echo "Uploading HAProxy script file to container '${CONTAINER_NAME}' as blob '$BLOB_NAME' (with overwrite/versioning)"
+
+          az storage blob upload \
+            --account-name "$STORAGE_ACCOUNT" \
+            --container-name "$CONTAINER_NAME" \
+            --file "$SCRIPT_FILE" \
+            --name "$BLOB_NAME" \
+            --overwrite true \
+            --auth-mode login
