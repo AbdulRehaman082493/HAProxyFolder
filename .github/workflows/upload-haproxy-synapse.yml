@@ -12,9 +12,12 @@ on:
 
 jobs:
   upload:
-    environment: ${{ inputs.environment }}   # important for env secrets
+    name: Upload HAProxy Files
 
-    uses: ./.github/workflows/upload-haproxy-artifacts.yml@main
+    # This job CALLS the reusable workflow.
+    # Note: no 'environment:' here, because we're using 'uses:'.
+    uses: ./.github/workflows/upload-haproxy-artifacts.yml
+
     with:
       environment: ${{ inputs.environment }}
       storageAccount: sthaproxyshared
@@ -23,5 +26,3 @@ jobs:
       haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
       installScriptPath: haproxy/scripts/install-haproxy.sh
       installScriptBlobName: install-haproxy.sh
-    secrets:
-      azureCredentials: ${{ secrets.AZURE_CREDENTIALS_ITOps }}
