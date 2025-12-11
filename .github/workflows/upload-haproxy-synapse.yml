@@ -1,33 +1,38 @@
-name: Upload HAProxy Files (Synapse)
+name: Upload HAProxy files for Synapse
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
-        required: true
+        description: "Select environment"
         type: choice
-        default: dev
+        required: true
         options:
           - dev
           - test
-          - stage
+          - test-ussc
           - prod
+          - prod-ussc
+          - stage
+        default: dev
 
 jobs:
   upload-haproxy:
-    # NOTE: for reusable workflows you CANNOT use `environment` here.
-    # Only the limited keywords are allowed. So we only use `uses` + `with`.
-    uses: ./.github/workflows/upload-haproxy-configs.yml
+    uses: your-org/central-repo-name/.github/workflows/upload-haproxy-files.yml@main
     with:
-      environment: ${{ github.event.inputs.environment }}
+      environment: ${{ inputs.environment }}
 
-      storageAccount: sthaproxyshared
-      container: synapse
+      # config file settings
+      config-storage-account: itopsusncsa001
+      config-container-name: synapse
+      config-file-path: haproxy/haproxy.cfg.${{ inputs.environment }}
+      config-blob-name: haproxy.cfg.${{ inputs.environment }}
 
-      # If you keep one cfg file per env: haproxy.cfg.dev / test / stage / prod
-      haproxyConfigPath: haproxy/haproxy.cfg.${{ github.event.inputs.environment }}
-      haproxyConfigBlobName: haproxy.cfg.${{ github.event.inputs.environment }}
+      # script file settings
+      script-storage-account: rehusr0845
+      script-container-name: synapse
+      script-file-path: haproxy/scripts/install-haproxy.sh
+      script-blob-name: install-haproxy.sh
 
-      installScriptPath: haproxy/scripts/install-haproxy.sh
-      installScriptBlobName: install-haproxy.sh
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
