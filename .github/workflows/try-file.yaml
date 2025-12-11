@@ -25,13 +25,13 @@ jobs:
 
       # === config file upload ===
       config-storage-account: sthaproxyshared
-      config-container-name: loadbalancer
+      config-container-name: synaspse
       config-file-path: ${{ format('haproxy/haproxy.cfg.{0}', inputs.environment) }}
       config-blob-name: ${{ format('haproxy.cfg.{0}', inputs.environment) }}
 
       # === script file upload ===
       script-storage-account: sthaproxyshared
-      script-container-name: loadbalancer
+      script-container-name: synaspse
       script-file-path: haproxy/scripts/install_haproxy.sh
       script-blob-name: install-haproxy.sh
 
