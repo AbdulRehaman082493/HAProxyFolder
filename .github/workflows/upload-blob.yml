@@ -1,18 +1,5 @@
 name: Upload Blob File (Reusable)
 
-# -----------------------------------------------------------
-# Reusable workflow to upload a single file from the repository
-# to Azure Blob Storage using environment-based secrets.
-#
-# Features:
-#  - Returns blob version ID to the caller
-#  - Validates file existence before upload
-#  - Uses least-privilege GitHub token permissions
-#  - Protects against parallel uploads (concurrency)
-#  - Supports GitHub Environments (dev/test/stage/prod)
-#  - Safe Bash execution (set -euo pipefail)
-# -----------------------------------------------------------
-
 on:
   workflow_call:
     inputs:
