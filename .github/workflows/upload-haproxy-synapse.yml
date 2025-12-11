@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment"
-        type: choice
+        description: 'Target environment'
         required: true
+        type: choice
+        default: dev
         options:
           - dev
           - test
@@ -14,10 +15,9 @@ on:
           - prod
 
 jobs:
-  upload_job:
-    environment: ${{ github.event.inputs.environment }}
-    secrets: inherit
-
+  upload-haproxy:
+    # NOTE: for reusable workflows you CANNOT use `environment` here.
+    # Only the limited keywords are allowed. So we only use `uses` + `with`.
     uses: ./.github/workflows/upload-haproxy-configs.yml
     with:
       environment: ${{ github.event.inputs.environment }}
@@ -25,6 +25,7 @@ jobs:
       storageAccount: sthaproxyshared
       container: synapse
 
+      # If you keep one cfg file per env: haproxy.cfg.dev / test / stage / prod
       haproxyConfigPath: haproxy/haproxy.cfg.${{ github.event.inputs.environment }}
       haproxyConfigBlobName: haproxy.cfg.${{ github.event.inputs.environment }}
 
