@@ -14,9 +14,8 @@ jobs:
   upload:
     name: Upload HAProxy Files
 
-    # This job CALLS the reusable workflow.
-    # Note: no 'environment:' here, because we're using 'uses:'.
-    uses: ./.github/workflows/upload-haproxy-artifacts.yml
+    # Call the reusable workflow correctly
+    uses: AbdulRehaman082493/HAProxyFolder/.github/workflows/upload-haproxy-configs.yml@main
 
     with:
       environment: ${{ inputs.environment }}
