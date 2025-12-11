@@ -1,0 +1,39 @@
+name: Upload HAProxy files for Synapse
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment"
+        type: choice
+        required: true
+        options:
+          - dev
+          - test
+          - test-ussc
+          - stage
+          - prod
+          - prod-ussc
+        default: dev
+
+jobs:
+  upload-haproxy:
+    # Reuse the workflow from this repo
+    uses: AbdulRehaman082493/synapse-workspace/.github/workflows/upload-haproxy-configs.yml@main
+    with:
+      environment: ${{ inputs.environment }}
+
+      # === config file upload ===
+      config-storage-account: sthaproxyshared
+      config-container-name: loadbalancer
+      config-file-path: ${{ format('haproxy/haproxy.cfg.{0}', inputs.environment) }}
+      config-blob-name: ${{ format('haproxy.cfg.{0}', inputs.environment) }}
+
+      # === script file upload ===
+      script-storage-account: sthaproxyshared
+      script-container-name: loadbalancer
+      script-file-path: haproxy/scripts/install_haproxy.sh
+      script-blob-name: install-haproxy.sh
+
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
