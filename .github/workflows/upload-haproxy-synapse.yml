@@ -7,18 +7,15 @@ on:
         description: "Select environment"
         type: choice
         required: true
-        options: [dev, test]
+        options: [dev, test, stage, prod]
         default: dev
 
 jobs:
   upload:
     name: Upload HAProxy Files
 
-    # Attach to environment (dev or test) to load env secrets
-    environment: ${{ inputs.environment }}
-
     # Call the reusable workflow
-    uses: AbdulRehaman082493/HAProxyFolder/.github/workflows/upload-haproxy-configs.yml@main
+    uses: ./.github/workflows/upload-haproxy-configs.yml
 
     with:
       environment: ${{ inputs.environment }}
@@ -28,6 +25,3 @@ jobs:
       haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
       installScriptPath: haproxy/scripts/install-haproxy.sh
       installScriptBlobName: install-haproxy.sh
-
-    secrets:
-      azureCredentials: ${{ secrets.AZURE_CREDENTIALS }}
