@@ -4,24 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Select environment"
+        description: "Environment"
         type: choice
         required: true
-        options: [dev, test, stage, prod]
-        default: dev
+        options:
+          - dev
+          - test
+          - stage
+          - prod
 
 jobs:
-  upload:
-    name: Upload HAProxy Files
+  upload_job:
+    environment: ${{ github.event.inputs.environment }}
+    secrets: inherit
 
-    # Call the reusable workflow
     uses: ./.github/workflows/upload-haproxy-configs.yml
-
     with:
-      environment: ${{ inputs.environment }}
+      environment: ${{ github.event.inputs.environment }}
+
       storageAccount: sthaproxyshared
       container: synapse
-      haproxyConfigPath: haproxy/haproxy.cfg.${{ inputs.environment }}
-      haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
+
+      haproxyConfigPath: haproxy/haproxy.cfg.${{ github.event.inputs.environment }}
+      haproxyConfigBlobName: haproxy.cfg.${{ github.event.inputs.environment }}
+
       installScriptPath: haproxy/scripts/install-haproxy.sh
       installScriptBlobName: install-haproxy.sh
