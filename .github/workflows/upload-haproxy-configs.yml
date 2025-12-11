@@ -6,39 +6,32 @@ on:
       environment:
         required: true
         type: string
-
       storageAccount:
         required: true
         type: string
-
       container:
         required: true
         type: string
-
       haproxyConfigPath:
         required: true
         type: string
-
       haproxyConfigBlobName:
         required: true
         type: string
-
       installScriptPath:
         required: true
         type: string
-
       installScriptBlobName:
         required: true
         type: string
-
-    secrets:
-      azureCredentials:
-        required: true
 
 jobs:
   upload-haproxy-files:
     name: Upload HAProxy Config & Script
     runs-on: ubuntu-latest
+
+    # Bind this job to the chosen environment (dev, test, stage, prod)
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout code
@@ -47,7 +40,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.azureCredentials }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Validate files
         run: |
