@@ -7,7 +7,7 @@ on:
         required: true
         type: string
 
-      # config file upload
+      # Config upload inputs
       config-storage-account:
         required: true
         type: string
@@ -21,7 +21,7 @@ on:
         required: true
         type: string
 
-      # script file upload
+      # Script upload inputs
       script-storage-account:
         required: true
         type: string
@@ -51,12 +51,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure Login
+      - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # upload config file
       - name: Upload environment-specific HAProxy config (versioned)
         env:
           STORAGE_ACCOUNT: ${{ inputs.config-storage-account }}
@@ -64,7 +63,7 @@ jobs:
           CONFIG_FILE: ${{ inputs.config-file-path }}
           BLOB_NAME: ${{ inputs.config-blob-name }}
         run: |
-          echo "Uploading $CONFIG_FILE to container '${CONTAINER_NAME}' as blob '$BLOB_NAME' (with overwrite/versioning)"
+          echo "Uploading $CONFIG_FILE to container '$CONTAINER_NAME' as blob '$BLOB_NAME' (with overwrite/versioning)"
 
           az storage blob upload \
             --account-name "$STORAGE_ACCOUNT" \
@@ -74,7 +73,6 @@ jobs:
             --overwrite true \
             --auth-mode login
 
-      # upload script file
       - name: Upload HAProxy installation script file (versioned)
         env:
           STORAGE_ACCOUNT: ${{ inputs.script-storage-account }}
@@ -82,7 +80,7 @@ jobs:
           SCRIPT_FILE: ${{ inputs.script-file-path }}
           BLOB_NAME: ${{ inputs.script-blob-name }}
         run: |
-          echo "Uploading HAProxy script file to container '${CONTAINER_NAME}' as blob '$BLOB_NAME' (with overwrite/versioning)"
+          echo "Uploading $SCRIPT_FILE to container '$CONTAINER_NAME' as blob '$BLOB_NAME' (with overwrite/versioning)"
 
           az storage blob upload \
             --account-name "$STORAGE_ACCOUNT" \
