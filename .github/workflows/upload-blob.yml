@@ -1,62 +1,138 @@
 name: Upload Blob File (Reusable)
 
+# -----------------------------------------------------------
+# Reusable workflow to upload a single file from the repository
+# to Azure Blob Storage using environment-based secrets.
+#
+# Features:
+#  - Returns blob version ID to the caller
+#  - Validates file existence before upload
+#  - Uses least-privilege GitHub token permissions
+#  - Protects against parallel uploads (concurrency)
+#  - Supports GitHub Environments (dev/test/stage/prod)
+#  - Safe Bash execution (set -euo pipefail)
+# -----------------------------------------------------------
+
 on:
   workflow_call:
     inputs:
       environment:
+        description: "GitHub environment (dev/test/stage/prod...) for secrets & approvals"
         required: true
         type: string
 
       storage_account:
+        description: "Azure Storage Account name"
         required: true
         type: string
 
       container_name:
+        description: "Blob container name"
         required: true
         type: string
 
       file_path:
+        description: "Path to the file inside this repo to upload"
         required: true
         type: string
 
       blob_name:
+        description: "Destination blob name"
         required: true
         type: string
 
     secrets:
       AZURE_CREDENTIALS:
-        required: true  # Environment-based secret
+        description: "Service principal credentials (environment-based)"
+        required: true
+
+    # Expose outputs to caller workflows
+    outputs:
+      version_id:
+        description: "Blob version ID returned after successful upload"
+        value: ${{ jobs.upload-blob.outputs.version_id }}
+
+# Ensure all run steps use bash consistently
+defaults:
+  run:
+    shell: bash
 
 jobs:
   upload-blob:
     name: Upload Blob
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    timeout-minutes: 15
+
+    # Security: Only allow read-only access to repo contents
+    permissions:
+      contents: read
+
+    # Concurrency control: prevent parallel runs from overwriting each other
+    concurrency:
+      group: upload-blob-${{ inputs.environment }}-${{ inputs.blob_name }}
+      cancel-in-progress: false
+
+    # Job-level output passed to workflow outputs
+    outputs:
+      version_id: ${{ steps.capture.outputs.version_id }}
 
     steps:
-      - name: Checkout repo
+      # Step 1: Checkout repository so file_path becomes available
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2: Login to Azure using environment-based service principal
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Step 3: Upload file to Azure Blob Storage
       - name: Upload file to Blob Storage
+        id: upload
         env:
           STORAGE_ACCOUNT: ${{ inputs.storage_account }}
           CONTAINER_NAME: ${{ inputs.container_name }}
           FILE_PATH: ${{ inputs.file_path }}
           BLOB_NAME: ${{ inputs.blob_name }}
         run: |
-          echo "Uploading $FILE_PATH to '$CONTAINER_NAME' as blob '$BLOB_NAME' ..."
+          # Enable strict, safe bash execution
+          set -euo pipefail
 
-          az storage blob upload \
+          echo "🔎 Validating file path..."
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "❌ ERROR: File not found → $FILE_PATH"
+            exit 1
+          fi
+
+          echo "🚀 Uploading '$FILE_PATH' → '$CONTAINER_NAME/$BLOB_NAME'..."
+
+          # Upload the file and capture the JSON response for extracting versionId
+          RESPONSE=$(az storage blob upload \
             --account-name "$STORAGE_ACCOUNT" \
             --container-name "$CONTAINER_NAME" \
             --file "$FILE_PATH" \
             --name "$BLOB_NAME" \
             --overwrite true \
-            --auth-mode login
+            --auth-mode login \
+            --output json)
 
-          echo "Upload completed for $BLOB_NAME"
+          # Save JSON response for the next step
+          echo "$RESPONSE" > response.json
+
+      # Step 4: Extract the blob version ID from Azure CLI response
+      - name: Extract version ID
+        id: capture
+        run: |
+          # Extract .version_id from response.json (empty if versioning disabled)
+          VERSION_ID=$(jq -r '.versionId // .version_id // empty' response.json)
+
+          if [[ -z "$VERSION_ID" ]]; then
+            echo "⚠️ No version_id found in upload response (storage versioning may be disabled)"
+          else
+            echo "📌 Captured version_id: $VERSION_ID"
+          fi
+
+          # Export output for caller workflow
+          echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
