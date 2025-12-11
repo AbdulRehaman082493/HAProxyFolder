@@ -7,25 +7,25 @@ on:
         required: true
         type: string
 
-      storage-account:
+      storage_account:
         required: true
         type: string
 
-      container-name:
+      container_name:
         required: true
         type: string
 
-      file-path:
+      file_path:
         required: true
         type: string
 
-      blob-name:
+      blob_name:
         required: true
         type: string
 
     secrets:
       AZURE_CREDENTIALS:
-        required: true
+        required: true  # Environment-based secret
 
 jobs:
   upload-blob:
@@ -42,14 +42,14 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Upload to Blob Storage
+      - name: Upload file to Blob Storage
         env:
-          STORAGE_ACCOUNT: ${{ inputs["storage-account"] }}
-          CONTAINER_NAME: ${{ inputs["container-name"] }}
-          FILE_PATH: ${{ inputs["file-path"] }}
-          BLOB_NAME: ${{ inputs["blob-name"] }}
+          STORAGE_ACCOUNT: ${{ inputs.storage_account }}
+          CONTAINER_NAME: ${{ inputs.container_name }}
+          FILE_PATH: ${{ inputs.file_path }}
+          BLOB_NAME: ${{ inputs.blob_name }}
         run: |
-          echo "Uploading $FILE_PATH to container '$CONTAINER_NAME' as blob '$BLOB_NAME'..."
+          echo "Uploading $FILE_PATH to '$CONTAINER_NAME' as blob '$BLOB_NAME' ..."
 
           az storage blob upload \
             --account-name "$STORAGE_ACCOUNT" \
