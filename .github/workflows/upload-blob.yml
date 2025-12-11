@@ -1,0 +1,62 @@
+name: Upload Blob File (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+      storage-account:
+        required: true
+        type: string
+
+      container-name:
+        required: true
+        type: string
+
+      file-path:
+        required: true
+        type: string
+
+      blob-name:
+        required: true
+        type: string
+
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true  # Environment-based secret
+
+jobs:
+  upload-blob:
+    name: Upload Blob
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Upload file to Blob Storage
+        env:
+          STORAGE_ACCOUNT: ${{ inputs.storage-account }}
+          CONTAINER_NAME: ${{ inputs.container-name }}
+          FILE_PATH: ${{ inputs.file-path }}
+          BLOB_NAME: ${{ inputs.blob-name }}
+        run: |
+          echo "Uploading $FILE_PATH to '$CONTAINER_NAME' as blob '$BLOB_NAME' ..."
+
+          az storage blob upload \
+            --account-name "$STORAGE_ACCOUNT" \
+            --container-name "$CONTAINER_NAME" \
+            --file "$FILE_PATH" \
+            --name "$BLOB_NAME" \
+            --overwrite true \
+            --auth-mode login
+
+          echo "Upload completed for $BLOB_NAME"
