@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "GitHub environment (dev/test/stage/prod...) for secrets & approvals"
+        description: "GitHub environment (dev/test/stage/prod...)"
         required: true
         type: string
 
