@@ -1,76 +1,83 @@
-name: Upload HAProxy Config & Script (Reusable)
+name: Upload HAProxy Config & Script
 
 on:
   workflow_call:
     inputs:
       environment:
+        description: "Target environment (dev/test/stage/prod)"
         required: true
         type: string
       storageAccount:
+        description: "Storage account name"
         required: true
         type: string
       container:
+        description: "Blob container name"
         required: true
         type: string
       haproxyConfigPath:
+        description: "Local path to HAProxy config file"
         required: true
         type: string
       haproxyConfigBlobName:
+        description: "Blob name for HAProxy config"
         required: true
         type: string
       installScriptPath:
+        description: "Local path to install script"
         required: true
         type: string
       installScriptBlobName:
+        description: "Blob name for install script"
         required: true
         type: string
 
 jobs:
   upload-haproxy-files:
-    name: Upload HAProxy Config & Script
     runs-on: ubuntu-latest
 
-    # Bind this job to the chosen environment (dev, test, stage, prod)
+    # This is where your *environment-level* secret AZURE_CREDENTIALS is attached
     environment: ${{ inputs.environment }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Azure Login
+      - name: Azure login (service principal via env secret)
         uses: azure/login@v2
         with:
+          # AZURE_CREDENTIALS is an *environment secret* containing the JSON:
+          # {
+          #   "clientId": "...",
+          #   "clientSecret": "...",
+          #   "subscriptionId": "...",
+          #   "tenantId": "..."
+          # }
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Validate files
-        run: |
-          set -e
-          test -f "${{ inputs.haproxyConfigPath }}"
-          test -f "${{ inputs.installScriptPath }}"
+      - name: Upload HAProxy config and script to Storage
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            echo "Uploading HAProxy config for environment '${{ inputs.environment }}'..."
 
-      - name: Ensure container exists
-        run: |
-          az storage container create \
-            --account-name "${{ inputs.storageAccount }}" \
-            --name "${{ inputs.container }}" \
-            --auth-mode login
+            az storage blob upload \
+              --auth-mode login \
+              --account-name "${{ inputs.storageAccount }}" \
+              --container-name "${{ inputs.container }}" \
+              --file "${{ inputs.haproxyConfigPath }}" \
+              --name "${{ inputs.haproxyConfigBlobName }}" \
+              --overwrite true
 
-      - name: Upload HAProxy config
-        run: |
-          az storage blob upload \
-            --account-name "${{ inputs.storageAccount }}" \
-            --container-name "${{ inputs.container }}" \
-            --file "${{ inputs.haproxyConfigPath }}" \
-            --name "${{ inputs.haproxyConfigBlobName }}" \
-            --overwrite true \
-            --auth-mode login
+            echo "Uploading HAProxy install script..."
 
-      - name: Upload Install Script
-        run: |
-          az storage blob upload \
-            --account-name "${{ inputs.storageAccount }}" \
-            --container-name "${{ inputs.container }}" \
-            --file "${{ inputs.installScriptPath }}" \
-            --name "${{ inputs.installScriptBlobName }}" \
-            --overwrite true \
-            --auth-mode login
+            az storage blob upload \
+              --auth-mode login \
+              --account-name "${{ inputs.storageAccount }}" \
+              --container-name "${{ inputs.container }}" \
+              --file "${{ inputs.installScriptPath }}" \
+              --name "${{ inputs.installScriptBlobName }}" \
+              --overwrite true
+
+            echo "Uploads completed."
