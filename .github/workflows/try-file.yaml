@@ -1,4 +1,4 @@
-name: Upload HAProxy files for Synapse
+name: Synapse
 
 on:
   workflow_dispatch:
