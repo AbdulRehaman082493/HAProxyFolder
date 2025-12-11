@@ -1,4 +1,4 @@
-name: Synapse
+name:  Synapse
 
 on:
   workflow_dispatch:
@@ -17,23 +17,24 @@ on:
         default: dev
 
 jobs:
-  upload-haproxy:
-    # Reuse the workflow from this repo
+  upload-config:
     uses: ./.github/workflows/upload-blob.yml
     with:
       environment: ${{ inputs.environment }}
+      storage-account: sthaproxyshared
+      container-name: loadbalancer
+      file-path: ${{ format('haproxy/haproxy.cfg.{0}', inputs.environment) }}
+      blob-name: ${{ format('haproxy.cfg.{0}', inputs.environment) }}
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # === config file upload ===
-      config-storage-account: sthaproxyshared
-      config-container-name: synaspse
-      config-file-path: ${{ format('haproxy/haproxy.cfg.{0}', inputs.environment) }}
-      config-blob-name: ${{ format('haproxy.cfg.{0}', inputs.environment) }}
-
-      # === script file upload ===
-      script-storage-account: sthaproxyshared
-      script-container-name: synaspse
-      script-file-path: haproxy/scripts/install_haproxy.sh
-      script-blob-name: install-haproxy.sh
-
+  upload-script:
+    uses: ./.github/workflows/upload-blob.yml
+    with:
+      environment: ${{ inputs.environment }}
+      storage-account: sthaproxyshared
+      container-name: loadbalancer
+      file-path: haproxy/scripts/install_haproxy.sh
+      blob-name: install-haproxy.sh
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
