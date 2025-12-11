@@ -1,28 +1,84 @@
-name: Upload HAProxy Files (Synapse)
+name: Upload HAProxy Config & Script (Reusable)
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       environment:
-        description: "Select environment"
-        type: choice
         required: true
-        options: [dev, test]
-        default: dev
+        type: string
+
+      storageAccount:
+        required: true
+        type: string
+
+      container:
+        required: true
+        type: string
+
+      haproxyConfigPath:
+        required: true
+        type: string
+
+      haproxyConfigBlobName:
+        required: true
+        type: string
+
+      installScriptPath:
+        required: true
+        type: string
+
+      installScriptBlobName:
+        required: true
+        type: string
 
 jobs:
-  upload:
-    name: Upload HAProxy Files
+  upload-haproxy-files:
+    name: Upload HAProxy Config & Script
+    runs-on: ubuntu-latest
 
-    # This job CALLS the reusable workflow.
-    # Note: no 'environment:' here, because we're using 'uses:'.
-    uses: ./.github/workflows/upload-haproxy-artifacts.yml
+    # Here we attach the job to the environment (dev / test)
+    # so that ENVIRONMENT SECRETS become available.
+    environment: ${{ inputs.environment }}
 
-    with:
-      environment: ${{ inputs.environment }}
-      storageAccount: sthaproxyshared
-      container: synapse
-      haproxyConfigPath: haproxy/haproxy.cfg.${{ inputs.environment }}
-      haproxyConfigBlobName: haproxy.cfg.${{ inputs.environment }}
-      installScriptPath: haproxy/scripts/install-haproxy.sh
-      installScriptBlobName: install-haproxy.sh
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          # This comes from the Environment's secrets (AZURE_CREDENTIALS)
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Validate files
+        run: |
+          set -e
+          test -f "${{ inputs.haproxyConfigPath }}"
+          test -f "${{ inputs.installScriptPath }}"
+
+      - name: Ensure container exists
+        run: |
+          az storage container create \
+            --account-name "${{ inputs.storageAccount }}" \
+            --name "${{ inputs.container }}" \
+            --auth-mode login
+
+      - name: Upload HAProxy config
+        run: |
+          az storage blob upload \
+            --account-name "${{ inputs.storageAccount }}" \
+            --container-name "${{ inputs.container }}" \
+            --file "${{ inputs.haproxyConfigPath }}" \
+            --name "${{ inputs.haproxyConfigBlobName }}" \
+            --overwrite true \
+            --auth-mode login
+
+      - name: Upload Install Script
+        run: |
+          az storage blob upload \
+            --account-name "${{ inputs.storageAccount }}" \
+            --container-name "${{ inputs.container }}" \
+            --file "${{ inputs.installScriptPath }}" \
+            --name "${{ inputs.installScriptBlobName }}" \
+            --overwrite true \
+            --auth-mode login
