@@ -33,7 +33,7 @@ jobs:
       # === script file upload ===
       script-storage-account: sthaproxyshared
       script-container-name: loadbalancer
-      script-file-path: haproxy/scripts/install-haproxy.sh
+      script-file-path: haproxy/scripts/install_haproxy.sh
       script-blob-name: install-haproxy.sh
 
     secrets:
