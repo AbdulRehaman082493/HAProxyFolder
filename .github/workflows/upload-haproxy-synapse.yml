@@ -19,7 +19,7 @@ on:
 jobs:
   upload-haproxy:
     # Reuse the workflow from this SAME repo
-    uses: ./.github/workflows/upload-haproxy-configs.yml
+    uses: AbdulRehaman082493/synapse-workspace/.github/workflows/upload-haproxy-configs.yml@main
     with:
       environment: ${{ inputs.environment }}
 
