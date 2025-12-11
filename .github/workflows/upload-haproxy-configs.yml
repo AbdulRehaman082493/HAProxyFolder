@@ -4,58 +4,44 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "Target environment (dev/test/stage/prod)"
         required: true
         type: string
       storageAccount:
-        description: "Storage account name"
         required: true
         type: string
       container:
-        description: "Blob container name"
         required: true
         type: string
       haproxyConfigPath:
-        description: "Local path to HAProxy config file"
         required: true
         type: string
       haproxyConfigBlobName:
-        description: "Blob name for HAProxy config"
         required: true
         type: string
       installScriptPath:
-        description: "Local path to install script"
         required: true
         type: string
       installScriptBlobName:
-        description: "Blob name for install script"
         required: true
         type: string
 
 jobs:
-  upload-haproxy-files:
+  upload:
     runs-on: ubuntu-latest
 
-    # NO environment: here – the environment is set in the caller job
-    # and its secrets are inherited into this job.
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Azure login (service principal via env secret)
+      - name: Azure Login
         uses: azure/login@v2
         with:
-          # This comes from the caller job's environment + secrets: inherit
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Upload HAProxy config and script to Storage
+      - name: Upload files
         uses: azure/cli@v2
         with:
-          azcliversion: latest
           inlineScript: |
-            echo "Uploading HAProxy config for environment '${{ inputs.environment }}'..."
-
             az storage blob upload \
               --auth-mode login \
               --account-name "${{ inputs.storageAccount }}" \
@@ -64,8 +50,6 @@ jobs:
               --name "${{ inputs.haproxyConfigBlobName }}" \
               --overwrite true
 
-            echo "Uploading HAProxy install script..."
-
             az storage blob upload \
               --auth-mode login \
               --account-name "${{ inputs.storageAccount }}" \
@@ -73,5 +57,3 @@ jobs:
               --file "${{ inputs.installScriptPath }}" \
               --name "${{ inputs.installScriptBlobName }}" \
               --overwrite true
-
-            echo "Uploads completed."
