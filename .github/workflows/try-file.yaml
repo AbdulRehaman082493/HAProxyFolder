@@ -1,10 +1,13 @@
-name: Synapse
+name: Synapse – Upload HAProxy Files
+
+# This makes the run title in the Actions UI more readable
+run-name: "Synapse – Upload HAProxy for ${{ inputs.environment }}"
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Select environment"
+        description: "Target environment for HAProxy artifacts"
         type: choice
         required: true
         options:
@@ -16,25 +19,62 @@ on:
           - prod-ussc
         default: dev
 
+# GitHub token permissions for this caller workflow
+permissions:
+  contents: read
+
+# Shared constants for this workflow
+env:
+  HAPROXY_STORAGE_ACCOUNT: sthaproxyshared
+  HAPROXY_CONTAINER_NAME: synapse   # <— fix spelling if your container is actually 'synaspse'
+
 jobs:
+  # --------------------------------------------------------
+  # 1) Upload HAProxy config file for the selected environment
+  # --------------------------------------------------------
   upload-config:
+    name: Upload HAProxy config
     uses: ./.github/workflows/upload-blob.yml
     with:
       environment: ${{ inputs.environment }}
       storage_account: sthaproxyshared
-      container_name: synaspse
+      container_name: adf
       file_path: ${{ format('haproxy/haproxy.cfg.{0}', inputs.environment) }}
       blob_name: ${{ format('haproxy.cfg.{0}', inputs.environment) }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
+  # --------------------------------------------------------
+  # 2) Upload HAProxy installation script
+  #    Depends on config upload (for deterministic ordering)
+  # --------------------------------------------------------
   upload-script:
+    name: Upload HAProxy install script
+    needs: upload-config
     uses: ./.github/workflows/upload-blob.yml
     with:
       environment: ${{ inputs.environment }}
       storage_account: sthaproxyshared
-      container_name: synaspse
+      container_name: adf
       file_path: haproxy/scripts/install_haproxy.sh
       blob_name: install-haproxy.sh
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+  # --------------------------------------------------------
+  # 3) Optional: Summarize the uploaded blob versions
+  #    (Uses outputs from the reusable workflow)
+  # --------------------------------------------------------
+  summarize:
+    name: Summarize uploaded blobs
+    runs-on: ubuntu-latest
+    needs:
+      - upload-config
+      - upload-script
+
+    steps:
+      - name: Print blob version info
+        run: |
+          echo "Environment           : ${{ inputs.environment }}"
+          echo "Config blob versionId : ${{ needs.upload-config.outputs.version_id }}"
+          echo "Script blob versionId : ${{ needs.upload-script.outputs.version_id }}"
